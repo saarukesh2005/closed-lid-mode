@@ -2,6 +2,10 @@
 
 # Closed-Lid Mode
 
+[![Build](https://github.com/saarukesh2005/closed-lid-mode/actions/workflows/build.yml/badge.svg)](https://github.com/saarukesh2005/closed-lid-mode/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/saarukesh2005/closed-lid-mode)](https://github.com/saarukesh2005/closed-lid-mode/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A macOS menu bar switch for using an external monitor with the laptop lid
 shut **while running on battery**.
 
