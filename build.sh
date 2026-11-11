@@ -8,7 +8,8 @@ set -euo pipefail
 
 APP_NAME="Closed-Lid Mode"
 BUNDLE_ID="io.github.saarukesh2005.closedlidmode"
-VERSION="1.0.0"
+# Overridable so CI can stamp the git tag: VERSION=1.2.3 ./build.sh --release
+VERSION="${VERSION:-1.0.0}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 BUILD="$HERE/build"
 OUT="$BUILD/$APP_NAME.app"
@@ -75,6 +76,10 @@ case "${1:-}" in
     rm -rf "/Applications/$APP_NAME.app"
     cp -R "$OUT" "/Applications/$APP_NAME.app"
     open "/Applications/$APP_NAME.app"
+    # Remove the staging copy. Leaving a second .app on disk gets it indexed
+    # by Spotlight and Launchpad, and makes it far too easy to launch a
+    # second instance by accident - two menu bar icons, one of them stale.
+    rm -rf "$OUT"
     echo "==> Installed to /Applications and launched."
     echo "    Look for a red or green dot in your menu bar."
     ;;
@@ -95,5 +100,8 @@ case "${1:-}" in
         -ov -format UDZO "$DMG"
     rm -rf "$STAGE"
     echo "==> $DMG"
+    # Same reason as --install: ship the .zip and .dmg, never leave a loose
+    # .app lying around to be indexed and double-launched.
+    rm -rf "$OUT"
     ;;
 esac

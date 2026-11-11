@@ -1,0 +1,42 @@
+name: Release
+
+# Push a tag like v1.1.0 and this builds it and publishes the release.
+#   git tag v1.1.0 && git push origin v1.1.0
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version from the tag
+        id: v
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and package
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: ./build.sh --release
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ steps.v.outputs.version }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "build/ClosedLidMode-$V.dmg" \
+            "build/ClosedLidMode-$V.zip" \
+            --title "Closed-Lid Mode $V" \
+            --generate-notes \
+            --notes-start-tag "$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo '')" \
+            || gh release create "$GITHUB_REF_NAME" \
+                 "build/ClosedLidMode-$V.dmg" \
+                 "build/ClosedLidMode-$V.zip" \
+                 --title "Closed-Lid Mode $V" \
+                 --generate-notes

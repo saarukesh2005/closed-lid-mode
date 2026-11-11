@@ -1,0 +1,50 @@
+name: Build
+
+# Every push and pull request gets compiled and packaged, so a broken build
+# is caught here rather than when someone tries to cut a release.
+# Can also be run by hand from the Actions tab.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: swiftc --version
+
+      # Plain build first: it leaves the .app in place so it can be
+      # inspected. --install and --release deliberately clean it up.
+      - name: Build
+        run: ./build.sh
+
+      - name: Check the app bundle is sane
+        run: |
+          APP="build/Closed-Lid Mode.app"
+          test -x "$APP/Contents/MacOS/ClosedLidMode"   || { echo "missing executable"; exit 1; }
+          test -f "$APP/Contents/Resources/AppIcon.icns" || { echo "missing icon"; exit 1; }
+          plutil -lint "$APP/Contents/Info.plist"
+          codesign -v "$APP" && echo "signature OK"
+          # LSUIElement is what keeps it out of the Dock - regressing it would
+          # turn the menu bar app into a windowless app with a Dock icon.
+          /usr/libexec/PlistBuddy -c "Print :LSUIElement" "$APP/Contents/Info.plist" | grep -qx true \
+            || { echo "LSUIElement is not set"; exit 1; }
+
+      - name: Package
+        run: ./build.sh --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClosedLidMode-app
+          path: |
+            build/*.dmg
+            build/*.zip
+          if-no-files-found: error
