@@ -1,18 +1,34 @@
 #!/bin/bash
-# Builds Closed-Lid Mode.app from src/main.swift.
-#   ./build.sh            -> builds into ./build
-#   ./build.sh --install  -> builds, then installs to /Applications and launches
+# Build Closed-Lid Mode.app
+#
+#   ./build.sh             build into ./build
+#   ./build.sh --install   build, install to /Applications, launch
+#   ./build.sh --release   build, then package a .zip and a .dmg for release
 set -euo pipefail
 
 APP_NAME="Closed-Lid Mode"
 BUNDLE_ID="io.github.saarukesh2005.closedlidmode"
+VERSION="1.0.0"
 HERE="$(cd "$(dirname "$0")" && pwd)"
-OUT="$HERE/build/$APP_NAME.app"
+BUILD="$HERE/build"
+OUT="$BUILD/$APP_NAME.app"
 
+command -v swiftc >/dev/null || {
+    echo "swiftc not found. Install the Xcode Command Line Tools:"
+    echo "    xcode-select --install"
+    exit 1
+}
+
+mkdir -p "$BUILD"
 rm -rf "$OUT"
-mkdir -p "$OUT/Contents/MacOS"
+mkdir -p "$OUT/Contents/MacOS" "$OUT/Contents/Resources"
 
-echo "Compiling..."
+echo "==> Icon"
+swift "$HERE/tools/make-icon.swift" >/dev/null
+iconutil -c icns "$BUILD/AppIcon.iconset" -o "$BUILD/AppIcon.icns"
+cp "$BUILD/AppIcon.icns" "$OUT/Contents/Resources/AppIcon.icns"
+
+echo "==> Compile"
 swiftc -swift-version 5 -O -o "$OUT/Contents/MacOS/ClosedLidMode" \
     "$HERE/src/main.swift" -framework Cocoa
 
@@ -29,12 +45,14 @@ cat > "$OUT/Contents/Info.plist" <<PLIST
 	<string>ClosedLidMode</string>
 	<key>CFBundleIdentifier</key>
 	<string>$BUNDLE_ID</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>$VERSION</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$VERSION</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>13.0</string>
 	<key>LSUIElement</key>
@@ -45,16 +63,37 @@ cat > "$OUT/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-# LSUIElement keeps it out of the Dock; the ad-hoc signature lets it launch.
+# Ad-hoc signature. This is NOT a Developer ID signature and the app is not
+# notarised - see the Gatekeeper section of the README.
 codesign --force --sign - --timestamp=none "$OUT" >/dev/null 2>&1
-echo "Built: $OUT"
+echo "==> Built: $OUT"
 
-if [[ "${1:-}" == "--install" ]]; then
+case "${1:-}" in
+--install)
     pkill -f "$APP_NAME.app/Contents/MacOS/ClosedLidMode" 2>/dev/null || true
     sleep 1
     rm -rf "/Applications/$APP_NAME.app"
     cp -R "$OUT" "/Applications/$APP_NAME.app"
     open "/Applications/$APP_NAME.app"
-    echo "Installed to /Applications and launched."
-    echo "Look for a red or green dot in your menu bar."
-fi
+    echo "==> Installed to /Applications and launched."
+    echo "    Look for a red or green dot in your menu bar."
+    ;;
+--release)
+    ZIP="$BUILD/ClosedLidMode-$VERSION.zip"
+    DMG="$BUILD/ClosedLidMode-$VERSION.dmg"
+    rm -f "$ZIP" "$DMG"
+
+    # ditto, not zip: it preserves the bundle's metadata and signature.
+    ditto -c -k --sequesterRsrc --keepParent "$OUT" "$ZIP"
+    echo "==> $ZIP"
+
+    STAGE="$BUILD/dmg-stage"
+    rm -rf "$STAGE"; mkdir -p "$STAGE"
+    cp -R "$OUT" "$STAGE/"
+    ln -s /Applications "$STAGE/Applications"
+    hdiutil create -quiet -volname "$APP_NAME" -srcfolder "$STAGE" \
+        -ov -format UDZO "$DMG"
+    rm -rf "$STAGE"
+    echo "==> $DMG"
+    ;;
+esac

@@ -1,3 +1,5 @@
+<img src="docs/icon.png" width="120" align="right" alt="Closed-Lid Mode icon">
+
 # Closed-Lid Mode
 
 A macOS menu bar switch for using an external monitor with the laptop lid
@@ -22,8 +24,17 @@ state permanently visible in the menu bar and one click away.
 
 ## Install
 
-Requires macOS 13 or later and the Xcode Command Line Tools
-(`xcode-select --install`). No other dependencies.
+### Option A — download the app
+
+Grab **ClosedLidMode-1.0.0.dmg** from the
+[latest release](https://github.com/saarukesh2005/closed-lid-mode/releases/latest),
+open it, and drag **Closed-Lid Mode** into Applications.
+
+The first launch will be blocked. **This is expected** — see below.
+
+### Option B — build it yourself (no warnings)
+
+Needs the Xcode Command Line Tools (`xcode-select --install`). Nothing else.
 
 ```bash
 git clone https://github.com/saarukesh2005/closed-lid-mode.git
@@ -31,11 +42,45 @@ cd closed-lid-mode
 ./build.sh --install
 ```
 
-That compiles the app, installs it to `/Applications` and launches it. Look
-for a red or green dot in your menu bar.
+An app you compile yourself is never quarantined, so it just opens. If you
+are comfortable in a terminal, this is the smoother path.
 
-To start it automatically, add it in System Settings → General → **Login
-Items & Extensions** → *Open at Login* → **+** → Closed-Lid Mode.
+Either way, look for a red or green dot in your menu bar afterwards.
+
+To start it automatically: System Settings → General → **Login Items &
+Extensions** → *Open at Login* → **+** → Closed-Lid Mode.
+
+## About that Gatekeeper warning
+
+If you download the release, macOS will refuse to open it:
+
+> "Closed-Lid Mode" can't be opened because Apple cannot check it for
+> malicious software.
+
+**Why:** Apple only waives that for apps signed with a Developer ID
+certificate and notarised through Apple's service. That requires the Apple
+Developer Program, which costs 99 USD a year. This app is free and
+ad-hoc signed instead, so it gets the warning. Verified with
+`spctl -a -t exec`: **rejected**, `Signature=adhoc`, `TeamIdentifier=not set`.
+
+Nothing is wrong with the app; macOS simply has no paid identity to check it
+against. You should be sceptical of that claim from any stranger on the
+internet, which is exactly why **Option B exists** — build it from source and
+read the single 230-line file first. It is short on purpose.
+
+To open the downloaded version anyway, pick one:
+
+**From System Settings** — try to open the app, let it be blocked, then go to
+System Settings → **Privacy & Security**, scroll down, and click
+**Open Anyway** next to the message about Closed-Lid Mode. On macOS 15 and
+later this is the only click-through route; right-click → Open no longer
+works for unsigned apps.
+
+**From Terminal** — strip the download quarantine flag:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Closed-Lid Mode.app"
+```
 
 ## Using it
 
