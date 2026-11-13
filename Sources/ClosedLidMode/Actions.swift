@@ -73,7 +73,7 @@ extension AppDelegate {
         """
         alert.addButton(withTitle: "Allow")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        guard alert.runInFront() == .alertFirstButtonReturn else { return }
 
         handle(PrivilegedSetup.allowUnattendedOff(),
                failureTitle: "Could not add the permission")
@@ -102,7 +102,7 @@ extension AppDelegate {
         """
         alert.addButton(withTitle: "Turn on Touch ID")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        guard alert.runInFront() == .alertFirstButtonReturn else { return }
 
         switch PrivilegedSetup.enableTouchID() {
         case .cancelled:
@@ -169,7 +169,7 @@ extension AppDelegate {
                 + "Turn it OFF first if that is not what you want."
             alert.addButton(withTitle: "Quit anyway")
             alert.addButton(withTitle: "Cancel")
-            if alert.runModal() != .alertFirstButtonReturn { return }
+            if alert.runInFront() != .alertFirstButtonReturn { return }
         }
         NSApplication.shared.terminate(nil)
     }
@@ -189,6 +189,28 @@ extension AppDelegate {
         alert.informativeText = body
         alert.alertStyle = style
         alert.addButton(withTitle: "OK")
-        alert.runModal()
+        alert.runInFront()
+    }
+}
+
+
+extension NSAlert {
+    /// Shows the alert in front of everything else.
+    ///
+    /// A menu bar app runs with `.accessory` activation policy and no Dock
+    /// icon, so macOS does not bring it forward on its own: `runModal()` alone
+    /// can open the dialog BEHIND whatever the user is looking at. That made
+    /// the Touch ID setup appear to do nothing at all - the sheet was there,
+    /// just invisible.
+    @discardableResult
+    func runInFront() -> NSApplication.ModalResponse {
+        if #available(macOS 14.0, *) {
+            NSApp.activate()
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        window.level = .floating
+        window.makeKeyAndOrderFront(nil)
+        return runModal()
     }
 }

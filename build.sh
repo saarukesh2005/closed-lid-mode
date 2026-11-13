@@ -10,7 +10,7 @@ set -euo pipefail
 APP_NAME="Closed-Lid Mode"
 BUNDLE_ID="io.github.saarukesh2005.closedlidmode"
 # Overridable so CI can stamp the git tag: VERSION=1.2.3 ./build.sh --release
-VERSION="${VERSION:-1.1.0}"
+VERSION="${VERSION:-1.1.1}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 BUILD="$HERE/build"
 OUT="$BUILD/$APP_NAME.app"

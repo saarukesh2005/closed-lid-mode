@@ -141,8 +141,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return item
         }())
 
-        menu.addItem(action(PrivilegedSetup.touchIDEnabled ? "Unlock with Touch ID"
-                                                           : "Unlock with Touch ID",
+        // Say plainly that the off state is something you can act on.
+        menu.addItem(action(PrivilegedSetup.touchIDEnabled
+                                ? "Unlock with Touch ID"
+                                : "Use Touch ID instead of a password…",
                             #selector(touchIDTapped),
                             on: PrivilegedSetup.touchIDEnabled))
         menu.addItem(action("Start at login", #selector(loginItemTapped), on: LoginItem.isEnabled))
