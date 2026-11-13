@@ -49,6 +49,8 @@ cd closed-lid-mode
 An app you compile yourself is never quarantined, so it just opens. If you
 are comfortable in a terminal, this is the smoother path.
 
+Run the tests with `./build.sh --test`.
+
 Either way, look for a red or green dot in your menu bar afterwards.
 
 To start it automatically: System Settings → General → **Login Items &
@@ -88,26 +90,58 @@ xattr -dr com.apple.quarantine "/Applications/Closed-Lid Mode.app"
 
 ## Using it
 
-Click the indicator for a menu with the state spelled out, a single button to
-flip it, and a plain-language explanation. Changing the setting needs admin
-authentication.
+Click the indicator for a menu with the state spelled out and one button to
+flip it.
+
+```
+🟢 LID ON     on, and nothing to worry about
+⚠️ LID ON     on, but the monitor is unplugged or you are on battery
+🔴 LID OFF    normal Apple behaviour
+```
+
+### It switches itself off
+
+The setting is system-wide and survives reboots, so it is very easy to leave
+on, walk away, and have the Mac sit awake in a bag draining. That is not a
+hypothetical - it is what prompted this feature.
+
+So the app watches, and by default turns the mode off by itself when:
+
+- the external monitor is unplugged, or
+- the battery drops to 20% while on battery
+
+Both are switchable in **Switch off automatically**.
+
+Acting unattended needs administrator rights, and there is nobody to approve
+a password prompt while you are away. So the app asks once for permission to
+switch *off* without a prompt - a single narrow rule that grants exactly
+`pmset -a disablesleep 0`. Turning the mode **on** still requires
+authentication, which means the worst that rule can do is make your Mac more
+willing to sleep. Grant or revoke it from the same menu.
+
+Without that permission nothing is lost - the app just warns loudly with
+**⚠️ LID ON** instead of acting.
 
 ### Touch ID
 
-If Touch ID is wired into `sudo`, the app asks for your fingerprint instead of
-your password. It is off by default in macOS. The menu has a
-*Use Touch ID instead of a password…* item that shows and copies the one
-command needed:
+**Unlock with Touch ID** in the menu switches on Touch ID for `sudo`, so the
+app asks for your fingerprint instead of your password. One macOS
+authentication prompt and it is done - no Terminal, no commands to paste.
 
-```bash
-sudo tee /etc/pam.d/sudo_local <<< 'auth sufficient pam_tid.so'
-```
+It writes Apple's own `sudo_local` file, which exists so the setting survives
+macOS updates, and the same menu item turns it off again. Everything that
+asks for your password in Terminal will accept your fingerprint too.
 
-This writes Apple's own `sudo_local` file, which exists so the setting
-survives macOS updates. Undo it with `sudo rm /etc/pam.d/sudo_local`.
+### Start at login
 
-The app **never writes that file itself**. Editing `/etc/pam.d` changes how
-your Mac authenticates you, so it shows you the command and lets you run it.
+**Start at login** in the menu, via Apple's `SMAppService`. No hand-written
+LaunchAgent, and it shows up in System Settings → Login Items like any other
+app.
+
+### Copy diagnostics
+
+Puts the app version, macOS version, mode state, monitor, lid, battery and
+every permission setting on the clipboard. Useful when something looks wrong.
 
 ## What it actually changes
 
@@ -177,6 +211,21 @@ running, and that alone can keep clamshell alive on battery with this mode
 ```bash
 pmset -g assertions
 ```
+
+## Project layout
+
+```
+Sources/ClosedLidModeCore/   parsing and decisions - no AppKit, all tested
+Sources/ClosedLidMode/       the app: menu bar, actions, privileged setup
+Sources/ClosedLidModeTests/  the test suite
+tools/make-icon.swift        draws AppIcon.icns with Core Graphics
+build.sh                     build / test / install / package
+```
+
+The tests are a plain executable run with `swift run ClosedLidModeTests`,
+not XCTest and not Swift Testing. Both of those ship with full Xcode rather
+than the Command Line Tools, so a contributor with only the CLT installed
+could not run them at all. A test nobody can run is worth nothing.
 
 ## Licence
 
