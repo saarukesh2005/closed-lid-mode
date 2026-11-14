@@ -72,7 +72,14 @@ enum PrivilegedSetup {
     }
 
     static var unattendedOffAllowed: Bool {
-        Shell.run("/usr/bin/sudo", ["-n", "-l", "/usr/bin/pmset", "-a", "disablesleep", "0"]).code == 0
+        // Both checks are needed. `sudo -n -l` alone lies: for five minutes
+        // after any sudo, cached credentials make it succeed with no rule
+        // present at all - and believing that would suppress the safety
+        // warning while the app in fact could not act. The file alone is not
+        // enough either, since sudo might not be honouring it.
+        guard FileManager.default.fileExists(atPath: sudoersPath) else { return false }
+        return Shell.run("/usr/bin/sudo",
+                         ["-n", "-l", "/usr/bin/pmset", "-a", "disablesleep", "0"]).code == 0
     }
 
     static func allowUnattendedOff() -> Shell.AuthResult {

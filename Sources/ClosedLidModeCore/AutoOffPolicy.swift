@@ -31,14 +31,26 @@ public enum AutoOffPolicy {
         return nil
     }
 
-    /// A warning to surface when the situation is risky but auto-off is not
-    /// configured to act on it - so the user is never left unaware.
+    /// A warning to surface when the situation is risky, so the user is never
+    /// left unaware.
+    ///
+    /// `canActUnattended` is what makes this honest. An earlier version
+    /// suppressed the warning whenever auto-off *would* fire, without checking
+    /// whether it *could*. With no permission to act, the app then sat showing
+    /// a calm green indicator while the Mac was awake on battery with no
+    /// monitor attached - precisely the situation it exists to catch.
     public static func warning(state: PowerState,
-                               settings: AutoOffSettings) -> RiskWarning? {
+                               settings: AutoOffSettings,
+                               canActUnattended: Bool) -> RiskWarning? {
         guard state.modeIsOn else { return nil }
-        // If auto-off will handle it, the warning would be redundant noise.
-        guard reasonToTurnOff(state: state, settings: settings) == nil else { return nil }
 
+        if let reason = reasonToTurnOff(state: state, settings: settings) {
+            // It will be handled in a moment; saying nothing is correct.
+            if canActUnattended { return nil }
+            return .couldNotSwitchOff(reason)
+        }
+
+        // No rule covers this, but it is still worth flagging.
         if !state.externalDisplayConnected { return .onWithoutMonitor }
         if state.onBattery { return .onAndDischarging }
         return nil

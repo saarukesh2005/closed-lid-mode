@@ -8,33 +8,27 @@ extension AppDelegate {
 
     @objc func toggleTapped() {
         let target = stateIsOn ? "0" : "1"
+        let caps = capabilities
 
-        // Touch ID when it is set up, otherwise the password dialog. Only one
-        // prompt either way - sudo is attempted only when it can actually
-        // succeed without a terminal.
-        let result: Shell.AuthResult
-        if PrivilegedSetup.touchIDEnabled || PrivilegedSetup.unattendedOffAllowed {
-            if Shell.run("/usr/bin/sudo", ["-n", "/usr/bin/pmset", "-a", "disablesleep", target]).code == 0 {
-                result = .ok
-            } else {
-                result = Shell.runAsRoot("/usr/bin/pmset -a disablesleep \(target)")
-            }
-        } else {
-            result = Shell.runAsRoot("/usr/bin/pmset -a disablesleep \(target)")
-        }
-
-        switch result {
-        case .cancelled:
-            return
-        case .failed(let message):
-            alert("Could not change the setting", message, style: .warning)
-        case .ok:
-            clearLastAutoOff()
-        }
-        // Give pmset a moment to settle before reading the value back.
+        // Off the main thread: an authentication dialog blocks until the user
+        // answers it, which could be a long time to have the UI frozen.
         Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 600_000_000)
-            self?.refreshNow()
+            let result = await Task.detached(priority: .userInitiated) {
+                Authorise.disableSleep(target, capabilities: caps)
+            }.value
+
+            guard let self else { return }
+            switch result {
+            case .cancelled:
+                return
+            case .failed(let message):
+                self.alert("Could not change the setting", message, style: .warning)
+            case .ok:
+                self.clearLastAutoOff()
+            }
+            // Give pmset a moment to settle before reading the value back.
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            self.refreshNow()
         }
     }
 
@@ -212,5 +206,42 @@ extension NSAlert {
         window.level = .floating
         window.makeKeyAndOrderFront(nil)
         return runModal()
+    }
+}
+
+
+/// Choosing how to authenticate a change.
+enum Authorise {
+
+    /// Applies `pmset -a disablesleep <value>` with the least intrusive
+    /// authentication available.
+    static func disableSleep(_ value: String,
+                             capabilities: SystemReader.Capabilities) -> Shell.AuthResult {
+
+        // The sudoers rule deliberately covers only switching OFF.
+        if value == "0", capabilities.unattendedOff,
+           Shell.runAsRootSilently(["/usr/bin/pmset", "-a", "disablesleep", "0"]) {
+            return .ok
+        }
+
+        if capabilities.touchID {
+            // Interactive sudo, on purpose.
+            //
+            // An earlier version passed `-n` here. `-n` forbids prompting, and
+            // the fingerprint sheet IS a prompt - so it guaranteed the Touch ID
+            // path could never succeed, and every toggle fell through to the
+            // password dialog. Touch ID was enabled and never once used.
+            //
+            // stdin is /dev/null, so if biometrics are unavailable sudo fails
+            // immediately instead of hanging on a password it cannot read.
+            if Shell.run("/usr/bin/sudo",
+                         ["-p", "", "/usr/bin/pmset", "-a", "disablesleep", value]).code == 0 {
+                return .ok
+            }
+            // Falling through matters: with the lid shut the Touch ID sensor is
+            // physically unreachable, which is exactly when this app is in use.
+        }
+
+        return Shell.runAsRoot("/usr/bin/pmset -a disablesleep \(value)")
     }
 }

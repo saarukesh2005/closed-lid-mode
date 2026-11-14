@@ -139,26 +139,46 @@ T.suite("risk warnings") {
 
     let unplugged = PowerState(modeIsOn: true, externalDisplayConnected: false,
                                onBattery: true, batteryPercent: 91)
-    T.equal(AutoOffPolicy.warning(state: unplugged, settings: passive), .onWithoutMonitor,
+    T.equal(AutoOffPolicy.warning(state: unplugged, settings: passive, canActUnattended: true), .onWithoutMonitor,
             "warns when on with no monitor and auto-off is disabled")
 
-    T.equal(AutoOffPolicy.warning(state: unplugged, settings: .default), nil,
+    T.equal(AutoOffPolicy.warning(state: unplugged, settings: .default, canActUnattended: true), nil,
             "stays quiet when auto-off will handle it")
 
     let onBatteryAtDesk = PowerState(modeIsOn: true, externalDisplayConnected: true,
                                      onBattery: true, batteryPercent: 90)
-    T.equal(AutoOffPolicy.warning(state: onBatteryAtDesk, settings: passive), .onAndDischarging,
+    T.equal(AutoOffPolicy.warning(state: onBatteryAtDesk, settings: passive, canActUnattended: true), .onAndDischarging,
             "warns when on and discharging")
 
     let safe = PowerState(modeIsOn: true, externalDisplayConnected: true,
                           onBattery: false, batteryPercent: 90)
-    T.equal(AutoOffPolicy.warning(state: safe, settings: passive), nil,
+    T.equal(AutoOffPolicy.warning(state: safe, settings: passive, canActUnattended: true), nil,
             "no warning at the desk on mains")
 
     let off = PowerState(modeIsOn: false, externalDisplayConnected: false,
                          onBattery: true, batteryPercent: 5)
-    T.equal(AutoOffPolicy.warning(state: off, settings: passive), nil,
+    T.equal(AutoOffPolicy.warning(state: off, settings: passive, canActUnattended: true), nil,
             "no warning when the mode is off")
+}
+
+// The exact state the Mac was found in: mode ON, no monitor, on battery,
+// and NO permission to switch off unattended. The app must not look calm.
+T.suite("regression: cannot act, must warn") {
+    let stuck = PowerState(modeIsOn: true, externalDisplayConnected: false,
+                           onBattery: true, batteryPercent: 91)
+    T.equal(AutoOffPolicy.warning(state: stuck, settings: .default, canActUnattended: false),
+            .couldNotSwitchOff(.monitorDisconnected),
+            "warns when auto-off wanted to fire but was not allowed to")
+
+    T.equal(AutoOffPolicy.warning(state: stuck, settings: .default, canActUnattended: true),
+            nil,
+            "stays quiet when it genuinely can act")
+
+    let lowAndStuck = PowerState(modeIsOn: true, externalDisplayConnected: true,
+                                 onBattery: true, batteryPercent: 9)
+    T.equal(AutoOffPolicy.warning(state: lowAndStuck, settings: .default, canActUnattended: false),
+            .couldNotSwitchOff(.batteryBelow(20)),
+            "same for the battery rule")
 }
 
 T.report()

@@ -56,6 +56,10 @@ public enum AutoOffReason: Equatable, Sendable {
 public enum RiskWarning: Equatable, Sendable {
     case onWithoutMonitor
     case onAndDischarging
+    /// Auto-off wanted to fire and was not permitted to. The most dangerous
+    /// state there is: the app knows the Mac should not be awake, and cannot
+    /// do anything about it. It must never look calm.
+    case couldNotSwitchOff(AutoOffReason)
 
     public var summary: String {
         switch self {
@@ -63,6 +67,8 @@ public enum RiskWarning: Equatable, Sendable {
             return "ON with no monitor attached - the Mac cannot sleep"
         case .onAndDischarging:
             return "ON and on battery - the Mac cannot sleep"
+        case .couldNotSwitchOff(let reason):
+            return "should have switched off (\(reason.explanation)) but is not allowed to"
         }
     }
 }
