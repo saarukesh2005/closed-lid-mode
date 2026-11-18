@@ -52,7 +52,12 @@ public enum AutoOffPolicy {
 
         // No rule covers this, but it is still worth flagging.
         if !state.externalDisplayConnected { return .onWithoutMonitor }
-        if state.onBattery { return .onAndDischarging }
+
+        // Being on and discharging with a monitor attached is the whole point
+        // of this app - warning about it would mean a permanent ⚠️ during
+        // normal use, which just teaches people to ignore the icon. Only worth
+        // saying when nothing at all is set to catch a draining battery.
+        if state.onBattery, settings.batteryThreshold == nil { return .onAndDischarging }
         return nil
     }
 }

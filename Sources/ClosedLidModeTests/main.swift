@@ -150,6 +150,17 @@ T.suite("risk warnings") {
     T.equal(AutoOffPolicy.warning(state: onBatteryAtDesk, settings: passive, canActUnattended: true), .onAndDischarging,
             "warns when on and discharging")
 
+    // The app's own reason for existing: clamshell, monitor attached, on
+    // battery. A warning here would be permanent during normal use.
+    let normalUse = PowerState(modeIsOn: true, externalDisplayConnected: true,
+                               onBattery: true, batteryPercent: 78)
+    T.equal(AutoOffPolicy.warning(state: normalUse, settings: .default, canActUnattended: true),
+            nil,
+            "no warning during intended use: monitor attached, battery healthy")
+    T.equal(AutoOffPolicy.warning(state: normalUse, settings: .default, canActUnattended: false),
+            nil,
+            "and none even without permission, since nothing needs doing")
+
     let safe = PowerState(modeIsOn: true, externalDisplayConnected: true,
                           onBattery: false, batteryPercent: 90)
     T.equal(AutoOffPolicy.warning(state: safe, settings: passive, canActUnattended: true), nil,
