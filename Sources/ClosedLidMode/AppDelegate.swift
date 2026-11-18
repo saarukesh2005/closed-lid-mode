@@ -163,15 +163,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // A colour emoji, not an image or a styled string: both of those can
         // render dark-on-dark and vanish on a dark menu bar. Emoji cannot.
         button.font = NSFont.systemFont(ofSize: 12, weight: .bold)
+        // Deliberately no toolTip. A tooltip on a status item pops a dark
+        // bubble over the screen whenever the cursor passes the menu bar,
+        // which reads as the app interrupting you. The title already says the
+        // state, and the menu says the rest when you actually ask for it.
+        button.toolTip = nil
         if !state.modeIsOn {
             button.title = "🔴 LID OFF"
-            button.toolTip = "Closed-Lid Mode is OFF - shutting the lid on battery puts the Mac to sleep."
-        } else if let warning {
+        } else if warning != nil {
             button.title = "⚠️ LID ON"
-            button.toolTip = "Closed-Lid Mode is " + warning.summary
         } else {
             button.title = "🟢 LID ON"
-            button.toolTip = "Closed-Lid Mode is ON - the lid can stay shut and the monitor keeps working."
         }
     }
 
